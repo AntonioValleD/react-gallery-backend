@@ -1,6 +1,7 @@
 const { DateTime } = require("luxon")
 const dotenv = require("dotenv")
 const uuid = require("uuid").v4
+const stream = require("stream")
 
 
 // Set environment variables
@@ -32,16 +33,18 @@ const addImage = (imageInfo, file, userInfo) => {
         console.log("Searching image...")
 
         let imgKey = uuid()
-        let uploadedImage = await uploadImageFile(file, imgKey, userInfo.id)
-        let url = `${process.env.ENDPOINT}/${userInfo.id}/${imgKey}`
+        let uploadedImage = await uploadDriveImage(file, imgKey, userInfo.id)
+        console.log(uploadedImage.data.id)
+        let url = `https://drive.google.com/uc?export=view&id=${uploadedImage.data.id}`
 
         let newImage = new ImageModel({
             userId: userInfo.id,
+            imageId:uploadedImage.data.id,
             title: imageInfo.title,
             fileName: file.name,
             key: imgKey,    
             url: url,
-            filters: JSON.parse(imageInfo.filters),
+            tags: JSON.parse(imageInfo.tags),
             uploadDate: DateTime.local(),
         })
         await newImage.save().then(() => {
@@ -59,8 +62,8 @@ const addProfileImage = (file, userInfo) => {
         console.log("Searching image...")
 
         let imgKey = uuid()
-        let uploadedImage = await uploadImageFile(file, imgKey, userInfo.id)
-        let url = `${process.env.ENDPOINT}/${userInfo.id}/${imgKey}`
+        let uploadedImage = await uploadDriveImage(file, imgKey, userInfo.id)
+        let url = `https://drive.google.com/uc?export=view&id=${uploadedImage.data.id}`
 
         let foundUser = await UserModel.findByIdAndUpdate(userInfo.id, {profileImageUrl: url}).exec()
 
@@ -96,7 +99,8 @@ const deleteImage = (id, imgKey, userInfo) => {
     return new Promise( async (resolve, reject) => {
         try {
             let deletedImage = await ImageModel.findByIdAndDelete(id).exec()
-            await deleteImageFile(imgKey, userInfo.id)
+            console.log(deletedImage);
+            await deleteDriveImage(deletedImage.imageId)
             console.log("Image found!\nImage deleted successfully")
             resolve(deletedImage)
         } catch (error) {
@@ -107,40 +111,136 @@ const deleteImage = (id, imgKey, userInfo) => {
 }
 
 // DigitalOcean spaces control functions
-const s3Client = require("../database/s3Client").s3Client
+// const s3Client = require("../database/s3Client").s3Client
 
-const uploadImageFile = (file, imgKey, userId) => {
+// const uploadImageFile = (file, imgKey, userId) => {
+//     return new Promise( async (resolve, reject) => {
+//         console.log(`Uploading ${file.name} image file...`)
+//         try {
+//             const uploadObject = await s3Client.putObject({
+//                 ACL: "public-read",
+//                 Bucket: userId || "",
+//                 Key: imgKey,
+//                 Body: file.data, 
+//             })
+//             console.log("Uploaded successfuly!")
+//             resolve(uploadObject)
+//         } catch (error) {
+//             console.log("Failed to upload image!")
+//             console.log(error);
+//             reject(error)
+//         }
+//     })
+// }
+
+// const deleteImageFile = (imgKey, userId) => {
+//     return new Promise( async (resolve, reject) => {
+//         console.log("Deleting image file...")
+//         try {
+//             await s3Client.deleteObject({
+//                 Bucket: userId,
+//                 Key: imgKey
+//             })
+//             console.log("Image file deleted successfully!")
+//             resolve()
+//         } catch (error) {
+//             console.log("Image file could not be deleted!")
+//             reject()
+//         }
+//     })
+// }
+
+
+// Google Drive control functions
+const drive = require("../database/googleDriveClient").drive
+
+const uploadDriveImage = (file, imgKey, userId) => {
     return new Promise( async (resolve, reject) => {
+        const bufferStream = new stream.PassThrough()
+        bufferStream.end(file.data)
         console.log(`Uploading ${file.name} image file...`)
         try {
-            const uploadObject = await s3Client.putObject({
-                ACL: "public-read",
-                Bucket: userId || "",
-                Key: imgKey,
-                Body: file.data, 
+            let userFolderId = ""
+            
+            console.log("Searching for react-gallery folder...")
+            const folder = await drive.files.list({
+                q: `mimeType = 'application/vnd.google-apps.folder' and 
+                    name = '${userId}' and
+                    '1Gmw6R3peeQpXCtz24HyIPkzcdQ0xet_i' in parents`,
+                fields: "files(id)",
+            })
+
+            if (folder.data.files.length > 0){
+                userFolderId = folder.data.files[0].id
+                console.log("Folder found!", userFolderId)
+            } else {
+                console.log("Folder not found!")
+                console.log("Creating react-gallery folder...")
+                const newFolder = await drive.files.create({
+                    requestBody: {
+                        name: userId,
+                        mimeType: "application/vnd.google-apps.folder",
+                        parents: ["1Gmw6R3peeQpXCtz24HyIPkzcdQ0xet_i"],
+                    },
+                    fields: "id",
+                })
+
+                await drive.permissions.create({
+                    fileId: newFolder.data.id,
+                    requestBody: {
+                        role: "reader",
+                        type: "anyone",
+                    },
+                })
+                console.log("Folder created successfully!", folder.data.id)
+                userFolderId = newFolder.data.id
+            }
+
+            const uploadObject = await drive.files.create({
+                requestBody: {
+                    name: imgKey,
+                    mimeType: file.mimetype,
+                    parents: [userFolderId],
+                },
+                media: {
+                    uploadType: "media",
+                    mimeType: file.mimetype,
+                    body: bufferStream,
+                },
             })
             console.log("Uploaded successfuly!")
+
+            console.log("Setting image permissions...")
+            await drive.permissions.create({
+                fileId: uploadObject.data.id,
+                requestBody: {
+                    role: "reader",
+                    type: "anyone",
+                },
+            })
+            console.log("Permissions set successfully!")
             resolve(uploadObject)
         } catch (error) {
             console.log("Failed to upload image!")
-            console.log(error);
+            console.log(error)
             reject(error)
         }
     })
 }
 
-const deleteImageFile = (imgKey, userId) => {
+const deleteDriveImage = (imageId) => {
     return new Promise( async (resolve, reject) => {
         console.log("Deleting image file...")
         try {
-            await s3Client.deleteObject({
-                Bucket: userId,
-                Key: imgKey
+            console.log("***", imageId);
+            await drive.files.delete({
+                fileId: imageId,
             })
             console.log("Image file deleted successfully!")
             resolve()
         } catch (error) {
             console.log("Image file could not be deleted!")
+            console.log(error)
             reject()
         }
     })

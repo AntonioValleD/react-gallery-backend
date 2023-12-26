@@ -15,7 +15,6 @@ const addNewImage = async (req, res) => {
     console.log("Add new image request incoming...")
     try {
         const { file } = req.files
-        console.log(file)
         let uplodadedImage = await imagesController.addImage(req.body, file, req.user)
         return res.status(200).json({
             message: "Image added successfully!",
@@ -54,7 +53,7 @@ const updateImageInfo = async (req, res) => {
 const deleteImage = async (req, res) => {
     console.log("Delete image request incoming...")
     try {
-        let deletedImage = await imagesController.deleteImage(req.body.id, req.body.imgKey, req.user)
+        let deletedImage = await imagesController.deleteImage(req.body.id)
         return res.status(200).json(deletedImage)
     } catch (error) {
         return res.status(400).json({message: error})

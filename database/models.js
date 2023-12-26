@@ -15,6 +15,7 @@ const UserModel = mongoose.model("users", {
 
 const ImageModel = mongoose.model("images", {
     userId: String,
+    imageId: String,
     title: String,
     key: String,
     fileName: String,
