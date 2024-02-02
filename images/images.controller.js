@@ -34,7 +34,6 @@ const addImage = (imageInfo, file, userInfo) => {
 
         let imgKey = uuid()
         let uploadedImage = await uploadDriveImage(file, imgKey, userInfo.id)
-        console.log(uploadedImage.data.id)
         let url = `https://drive.google.com/uc?export=view&id=${uploadedImage.data.id}`
 
         let newImage = new ImageModel({
@@ -218,6 +217,13 @@ const uploadDriveImage = (file, imgKey, userId) => {
                     type: "anyone",
                 },
             })
+
+            const imgData = await drive.files.get({
+                fileId: uploadObject.data.id,
+                fields: "webContentLink",
+            })
+
+            console.log(imgData);
             console.log("Permissions set successfully!")
             resolve(uploadObject)
         } catch (error) {

@@ -22,7 +22,8 @@ const protectWithJwt = (req, res, next) => {
     if (
         req.path == '/' || 
         req.path == '/auth/login' || 
-        req.path == '/auth/signup'
+        req.path == '/auth/signup' ||
+        req.path == '/proxy-google-drive'
     ){
         return next()
     }

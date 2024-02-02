@@ -20,7 +20,7 @@ const ImageModel = mongoose.model("images", {
     key: String,
     fileName: String,
     url: String,
-    filters: Object,
+    tags: Object,
     uploadDate: String,
 })
 
