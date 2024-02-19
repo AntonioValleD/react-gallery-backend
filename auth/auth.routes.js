@@ -14,5 +14,7 @@ router.route("/users")
     .patch(authHttp.updateUserInfo)
     .delete(authHttp.deleteUser)
 
+router.route("/password")
+    .put(authHttp.changePassword)
 
 exports.router = router

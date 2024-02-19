@@ -3,7 +3,6 @@ const middlewares = require("./middlewares")
 const dotenv = require("dotenv")
 const database = require("./database/connection")
 
-const drive = require("./database/googleDriveClient")
 
 
 dotenv.config()

@@ -44,7 +44,7 @@ const addNewUser = (reqBody) => {
                     password: crypto.hashPasswordSync(reqBody.password),
                     registerDate: DateTime.local(),
                     tagList: [],
-                    profilePicUrl: ""
+                    profileImageUrl: ""
                 })
                 await newUser.save().then(() => {
                     console.log('User registered successfully!')
@@ -108,6 +108,32 @@ const deleteUser = (email) => {
     })
 }
 
+const updatePassword = (passwords, email) => {
+    return new Promise(async (resolve, reject) => {
+        console.log("Updating password...")
+        console.log("Searching user...")
+        const user = await getUserFromEmail(email)
+        if (!user){
+            console.log("User not found!")
+            return reject("User not found!")
+
+        } 
+
+        console.log("User found!\nChecking current password...")
+        if (!crypto.comparePassword(passwords.currentPassword, user.password)){
+            console.log("Invalid password!")
+            return reject("La contraseña ingresada es incorrecta")
+        } 
+
+        console.log("Current password is correct!\nUpdating password...")
+        UserModel.findOneAndUpdate(
+            {email: email}, 
+            {password: crypto.hashPasswordSync(passwords.newPassword)}).exec()
+        console.log("Password updated successfully!")
+        return resolve()
+    })
+}
+
 
 // Credentials control
 const checkUserCredentials = (reqBody) => {
@@ -123,14 +149,14 @@ const checkUserCredentials = (reqBody) => {
                 reject("Invalid credentials!")
             } else {
                 console.log("Sing up successfully!")
-                resolve(user);
+                resolve(user)
             }
         } else {
             console.log("User not found!")
             reject("User not found!")
         }
-    });
-};
+    })
+}
 
 const checkUserToken = (userToken) => {
     return new Promise(async (resolve, reject) => {
@@ -155,3 +181,4 @@ exports.cleanUpUsers = cleanUpUsers
 exports.getUserList = getUserList
 exports.updateUserInfo = updateUserInfo
 exports.deleteUser = deleteUser
+exports.updatePassword = updatePassword

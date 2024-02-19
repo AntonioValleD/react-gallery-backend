@@ -29,11 +29,10 @@ const addProfileImage = async (req, res) => {
     console.log("Add profile image request incoming...")
     try {
         const { file } = req.files
-        console.log(file)
-        let uplodadedImage = await imagesController.addProfileImage(file, req.user)
+        let uplodadedImageUrl = await imagesController.addProfileImage(file, req.user)
         return res.status(200).json({
             message: "Profile image added successfully!",
-            file: uplodadedImage
+            url: uplodadedImageUrl
         })
     } catch (error) {
         return res.status(400).json({message: error})
