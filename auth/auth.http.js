@@ -73,7 +73,7 @@ const deleteUser = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         let newPassword = await authController.updatePassword(req.body, req.user.email)
-        return res.status(200).json({message: "Password updated successfully"})
+        return res.status(200).json({message: "La contraseña ha sido actualizada correctamente!"})
     } catch (error) {
         return res.status(400).json({message: error})
     }
